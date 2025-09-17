@@ -176,6 +176,7 @@ class BayesianClassifier:
     def likelihood_ratio_vectorized(self, x: np.ndarray) -> np.ndarray:
         """
         Versión vectorizada de likelihood_ratio para mejor rendimiento
+        CORREGIDO: Maneja matrices de covarianza completas correctamente
         
         Args:
             x: Muestras a evaluar (N, D)
@@ -196,17 +197,33 @@ class BayesianClassifier:
         diff_lesion = x - self.mu_lesion
         diff_non_lesion = x - self.mu_non_lesion
         
-        # Calcular log-likelihoods vectorizados (asumiendo matrices diagonales)
-        log_likelihood_lesion = -0.5 * np.sum(diff_lesion**2 / np.diag(self.sigma_lesion), axis=1)
-        log_likelihood_non_lesion = -0.5 * np.sum(diff_non_lesion**2 / np.diag(self.sigma_non_lesion), axis=1)
+        try:
+            # Calcular inversas de matrices de covarianza
+            sigma_lesion_inv = np.linalg.inv(self.sigma_lesion)
+            sigma_non_lesion_inv = np.linalg.inv(self.sigma_non_lesion)
+            
+            # Calcular determinantes
+            det_lesion = np.linalg.det(self.sigma_lesion)
+            det_non_lesion = np.linalg.det(self.sigma_non_lesion)
+            
+        except np.linalg.LinAlgError:
+            # Si las matrices son singulares, usar regularización
+            warnings.warn("Matrices de covarianza singulares, aplicando regularización")
+            sigma_lesion_reg = self.sigma_lesion + np.eye(self.feature_dim) * self.regularization * 10
+            sigma_non_lesion_reg = self.sigma_non_lesion + np.eye(self.feature_dim) * self.regularization * 10
+            
+            sigma_lesion_inv = np.linalg.inv(sigma_lesion_reg)
+            sigma_non_lesion_inv = np.linalg.inv(sigma_non_lesion_reg)
+            det_lesion = np.linalg.det(sigma_lesion_reg)
+            det_non_lesion = np.linalg.det(sigma_non_lesion_reg)
         
-        # Calcular determinantes (para matrices diagonales es el producto de elementos diagonales)
-        det_lesion = np.prod(np.diag(self.sigma_lesion))
-        det_non_lesion = np.prod(np.diag(self.sigma_non_lesion))
+        # Calcular log-likelihoods vectorizados usando forma cuadrática completa
+        log_likelihood_lesion = -0.5 * np.sum(diff_lesion @ sigma_lesion_inv * diff_lesion, axis=1)
+        log_likelihood_non_lesion = -0.5 * np.sum(diff_non_lesion @ sigma_non_lesion_inv * diff_non_lesion, axis=1)
         
         # Agregar términos de normalización
-        log_likelihood_lesion -= 0.5 * np.log(det_lesion)
-        log_likelihood_non_lesion -= 0.5 * np.log(det_non_lesion)
+        log_likelihood_lesion -= 0.5 * np.log(max(det_lesion, 1e-10))
+        log_likelihood_non_lesion -= 0.5 * np.log(max(det_non_lesion, 1e-10))
         
         # Calcular ratios en espacio log para estabilidad
         log_ratios = log_likelihood_lesion - log_likelihood_non_lesion
@@ -271,23 +288,27 @@ class BayesianClassifier:
         post_lesion, post_non_lesion = self.posterior_probabilities(x)
         return np.column_stack([post_non_lesion, post_lesion])
     
-    def predict(self, x: np.ndarray, threshold: float = 1.0) -> np.ndarray:
+    def predict(self, x: np.ndarray, threshold: float = 0.0) -> np.ndarray:
         """
-        Predice clases basado en razón de verosimilitudes
+        Predice clases basado en log-razón de verosimilitudes - CORREGIDO PARA CONSISTENCIA
         
         Args:
             x: Muestras a evaluar (N, D)
-            threshold: Umbral para la razón de verosimilitudes
+            threshold: Umbral para log-razón de verosimilitudes (0.0 equivale a likelihood_ratio=1.0)
             
         Returns:
             Predicciones (N,) donde 1 = lesión, 0 = no-lesión
         """
-        ratios = self.likelihood_ratio(x)
-        return (ratios > threshold).astype(int)
+        if not self.is_fitted:
+            raise ValueError("El clasificador debe ser entrenado primero")
+        
+        # Usar decision_scores (log-ratios) para consistencia con ROC analysis
+        log_ratios = self.decision_scores(x)
+        return (log_ratios > threshold).astype(int)
     
     def decision_scores(self, x: np.ndarray) -> np.ndarray:
         """
-        Calcula scores de decisión (log razón de verosimilitudes) - VERSIÓN OPTIMIZADA
+        Calcula scores de decisión (log razón de verosimilitudes) - VERSIÓN CORREGIDA
         
         Args:
             x: Muestras a evaluar (N, D)
@@ -295,13 +316,18 @@ class BayesianClassifier:
         Returns:
             Scores de decisión (N,)
         """
+        if not self.is_fitted:
+            raise ValueError("El clasificador debe ser entrenado primero")
+        
+        # Usar el método corregido que maneja matrices completas
         ratios = self.likelihood_ratio_vectorized(x)
+        
         # Usar log para estabilidad numérica
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             log_ratios = np.log(ratios)
             
-        # Manejar casos extremos
+        # Manejar casos extremos de forma más robusta
         log_ratios[np.isinf(log_ratios) & (log_ratios > 0)] = 50  # log(ratio muy grande)
         log_ratios[np.isinf(log_ratios) & (log_ratios < 0)] = -50  # log(ratio muy pequeño)
         log_ratios[np.isnan(log_ratios)] = 0  # casos ambiguos
@@ -423,9 +449,13 @@ if __name__ == "__main__":
     print(f"P(lesión|x): {prob_lesion}")
     print(f"P(no-lesión|x): {prob_non_lesion}")
     
-    # Predicciones
-    predictions = classifier.predict(test_data, threshold=1.0)
-    print(f"Predicciones (umbral=1.0): {predictions}")
+    # Predicciones con el nuevo sistema de umbrales (log-space)
+    predictions = classifier.predict(test_data, threshold=0.0)  # 0.0 equivale a likelihood_ratio=1.0
+    print(f"Predicciones (umbral=0.0 en log-space): {predictions}")
+    
+    # Scores de decisión (log-ratios)
+    decision_scores = classifier.decision_scores(test_data)
+    print(f"Scores de decisión (log-ratios): {decision_scores}")
     
     # Parámetros del modelo
     params = classifier.get_model_parameters()

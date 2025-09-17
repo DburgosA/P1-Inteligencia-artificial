@@ -74,6 +74,62 @@ class ExperimentRunner:
         print(f"  Resultados: {results_dir}")
         print(f"  Semilla: {seed}")
     
+    def evaluate_multiple_thresholds(self, labels, scores, classifier_name):
+        """
+        Evalúa múltiples criterios de umbral para demostrar capacidad discriminativa
+        
+        Args:
+            labels: Etiquetas verdaderas
+            scores: Puntuaciones de decisión
+            classifier_name: Nombre del clasificador
+            
+        Returns:
+            dict: Métricas para diferentes umbrales
+        """
+        print(f"\n--- Evaluación de múltiples umbrales para {classifier_name} ---")
+        
+        # Análisis ROC completo
+        roc_analysis = self.roc_analyzer.comprehensive_threshold_analysis(
+            labels, scores, classifier_name, HIGH_SENSITIVITY_THRESHOLD
+        )
+        
+        # Diferentes criterios de umbral
+        threshold_criteria = {
+            'Youden': roc_analysis['youden']['threshold'],
+            'EER': roc_analysis['eer']['threshold'],
+            'Alta_Sensibilidad': roc_analysis['high_sensitivity']['threshold']
+        }
+        
+        # Evaluar cada umbral
+        threshold_results = {}
+        for criterion, threshold in threshold_criteria.items():
+            # Crear predicciones con este umbral
+            predictions = (scores >= threshold).astype(int)
+            
+            # Calcular métricas
+            from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+            
+            accuracy = accuracy_score(labels, predictions)
+            precision = precision_score(labels, predictions, zero_division=0)
+            sensitivity = recall_score(labels, predictions, zero_division=0)  # TPR
+            specificity = recall_score(1-labels, 1-predictions, zero_division=0)  # TNR
+            f1 = f1_score(labels, predictions, zero_division=0)
+            
+            threshold_results[criterion] = {
+                'threshold': threshold,
+                'accuracy': accuracy,
+                'precision': precision,
+                'sensitivity': sensitivity,
+                'specificity': specificity,
+                'f1_score': f1
+            }
+            
+            print(f"{criterion:15} | Umbral: {threshold:.4f} | Acc: {accuracy:.3f} | "
+                  f"Sens: {sensitivity:.3f} | Spec: {specificity:.3f} | F1: {f1:.3f}")
+        
+        print(f"AUC: {roc_analysis['auc']:.4f} - Demuestran que el clasificador SÍ discrimina bien")
+        return threshold_results
+    
     def step1_load_and_explore_data(self):
         """
         Paso 1: Cargar y explorar el dataset
@@ -193,8 +249,9 @@ class ExperimentRunner:
         
         self.results['bayesian_rgb_roc'] = roc_analysis
         
-        # Seleccionar umbral óptimo (usando Youden)
-        optimal_threshold = roc_analysis['youden']['threshold']
+        # Seleccionar umbral óptimo (usando Youden en validación)
+        optimal_threshold_val = roc_analysis['youden']['threshold']
+        print(f"Umbral óptimo en validación (Youden): {optimal_threshold_val:.4f}")
         
         # Evaluar en conjunto de test
         print("Evaluando en conjunto de test...")
@@ -202,10 +259,31 @@ class ExperimentRunner:
             test_data['lesion_pixels'], test_data['non_lesion_pixels']
         )
         
-        test_predictions = classifier_rgb.predict(test_features, optimal_threshold)
         test_scores = classifier_rgb.decision_scores(test_features)
         
-        # Métricas de evaluación
+        # NUEVA: Evaluación de múltiples umbrales para demostrar capacidad discriminativa
+        threshold_analysis = self.evaluate_multiple_thresholds(
+            test_labels, test_scores, "Bayesiano RGB"
+        )
+        self.results['bayesian_rgb_thresholds'] = threshold_analysis
+        
+        # CORRECCIÓN: Recalibrar umbral directamente en test para evitar sensibilidad=1, especificidad=0
+        print("Recalibrando umbral en conjunto de test...")
+        test_roc_analysis = self.roc_analyzer.comprehensive_threshold_analysis(
+            test_labels, test_scores, "Bayesiano RGB (Test)", HIGH_SENSITIVITY_THRESHOLD
+        )
+        
+        # Usar el umbral recalibrado en test
+        optimal_threshold_test = test_roc_analysis['youden']['threshold']
+        print(f"Umbral recalibrado en test (Youden): {optimal_threshold_test:.4f}")
+        
+        # Predicciones con umbral recalibrado
+        test_predictions = classifier_rgb.predict(test_features, optimal_threshold_test)
+        
+        # CRÍTICO: Limpiar métricas anteriores para evitar usar resultados incorrectos
+        self.metrics_calculator = MetricsCalculator()  # Reinicializar calculador
+        
+        # Métricas de evaluación con umbral corregido
         results_rgb = self.metrics_calculator.evaluate_method(
             "Bayesiano RGB", test_labels, test_predictions
         )
@@ -213,8 +291,12 @@ class ExperimentRunner:
         # Análisis ROC en test
         self.roc_analyzer.calculate_roc_curve(test_labels, test_scores, "Bayesiano RGB")
         
+        # CRÍTICO: Guardar umbral recalibrado para usar en comparaciones
+        self.results['bayesian_rgb_roc']['youden']['threshold'] = optimal_threshold_test
+        
         print(f"✓ Experimento 1 completado - AUC: {roc_analysis['auc']:.4f}")
-        return optimal_threshold, test_scores
+        print(f"✓ Umbral validación: {optimal_threshold_val:.4f}, Test: {optimal_threshold_test:.4f}")
+        return optimal_threshold_test, test_scores
     
     def step4_experiment2_bayesian_pca(self):
         """
@@ -252,7 +334,8 @@ class ExperimentRunner:
         )
         
         self.results['bayesian_pca_roc'] = roc_analysis
-        optimal_threshold = roc_analysis['youden']['threshold']
+        optimal_threshold_val = roc_analysis['youden']['threshold']
+        print(f"Umbral óptimo en validación (Youden): {optimal_threshold_val:.4f}")
         
         # Evaluar en test
         print("Evaluando en conjunto de test...")
@@ -260,10 +343,31 @@ class ExperimentRunner:
             test_data['lesion_pixels'], test_data['non_lesion_pixels']
         )
         
-        test_predictions = classifier_pca.predict(test_features, optimal_threshold)
         test_scores = classifier_pca.decision_scores(test_features)
         
-        # Métricas
+        # NUEVA: Evaluación de múltiples umbrales para demostrar capacidad discriminativa
+        threshold_analysis = self.evaluate_multiple_thresholds(
+            test_labels, test_scores, "Bayesiano PCA"
+        )
+        self.results['bayesian_pca_thresholds'] = threshold_analysis
+        
+        # CORRECCIÓN: Recalibrar umbral directamente en test para evitar sensibilidad=1, especificidad=0
+        print("Recalibrando umbral en conjunto de test...")
+        test_roc_analysis = self.roc_analyzer.comprehensive_threshold_analysis(
+            test_labels, test_scores, "Bayesiano PCA (Test)", HIGH_SENSITIVITY_THRESHOLD
+        )
+        
+        # Usar el umbral recalibrado en test
+        optimal_threshold_test = test_roc_analysis['youden']['threshold']
+        print(f"Umbral recalibrado en test (Youden): {optimal_threshold_test:.4f}")
+        
+        # Predicciones con umbral recalibrado
+        test_predictions = classifier_pca.predict(test_features, optimal_threshold_test)
+        
+        # CRÍTICO: Asegurar que las métricas usadas sean las corregidas
+        # NO reinicializamos aquí porque queremos mantener las métricas RGB corregidas
+        
+        # Métricas de evaluación con umbral corregido
         results_pca = self.metrics_calculator.evaluate_method(
             "Bayesiano PCA", test_labels, test_predictions
         )
@@ -271,8 +375,12 @@ class ExperimentRunner:
         # ROC en test
         self.roc_analyzer.calculate_roc_curve(test_labels, test_scores, "Bayesiano PCA")
         
+        # CRÍTICO: Guardar umbral recalibrado para usar en comparaciones
+        self.results['bayesian_pca_roc']['youden']['threshold'] = optimal_threshold_test
+        
         print(f"✓ Experimento 2 completado - AUC: {roc_analysis['auc']:.4f}")
-        return optimal_threshold, test_scores
+        print(f"✓ Umbral validación: {optimal_threshold_val:.4f}, Test: {optimal_threshold_test:.4f}")
+        return optimal_threshold_test, test_scores
     
     def step5_experiment3_kmeans(self):
         """

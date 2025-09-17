@@ -1,8 +1,0 @@
-{
-  "image_name": "ISIC_0024306.jpg",
-  "timestamp": "20250916_162011",
-  "classifier": "Bayesiano RGB",
-  "threshold_criterion": "Youden",
-  "statistics": {
-    "total_pixels": 270000,
-    "lesion_pixels": 

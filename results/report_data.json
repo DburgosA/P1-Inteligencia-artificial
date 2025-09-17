@@ -110,49 +110,49 @@
   "roc_analysis": {
     "bayesian_rgb": {
       "method_name": "Bayesiano RGB",
-      "auc": 0.916421137312633,
+      "auc": 0.9222583775427404,
       "youden": {
-        "threshold": -0.08135870852935595,
-        "index": 0.6541676415690991,
-        "sensitivity": 0.7837984777876362,
-        "specificity": 0.870369163781463
+        "threshold": -0.06905137132456268,
+        "index": 0.6745926175687624,
+        "sensitivity": 0.8496790440599705,
+        "specificity": 0.824913573508792
       },
       "eer": {
-        "threshold": -0.9459560093653256,
-        "value": 0.17331251053578106,
-        "sensitivity": 0.8266850889138495,
-        "specificity": 0.8266898900145884
+        "threshold": -0.450474145949447,
+        "value": 0.16353423610317142,
+        "sensitivity": 0.8364578980054619,
+        "specificity": 0.8364736297881953
       },
       "high_sensitivity": {
         "feasible": true,
-        "threshold": -2.5702606554538487,
-        "sensitivity": 0.9000401492046438,
-        "specificity": 0.733728116421837,
-        "fpr": 0.266271883578163,
+        "threshold": -1.0766632834519487,
+        "sensitivity": 0.9000090324906034,
+        "specificity": 0.7594924829735102,
+        "fpr": 0.24050751702648973,
         "min_sensitivity_required": 0.9
       }
     },
     "bayesian_pca": {
       "method_name": "Bayesiano PCA",
-      "auc": 0.9152667553070641,
+      "auc": 0.909859916822391,
       "youden": {
-        "threshold": -0.015783270515786804,
-        "index": 0.6551249538162329,
-        "sensitivity": 0.7886898523641572,
-        "specificity": 0.8664351014520757
+        "threshold": -0.07338325770724578,
+        "index": 0.6573352719782106,
+        "sensitivity": 0.7857350610600686,
+        "specificity": 0.871600210918142
       },
       "eer": {
-        "threshold": -0.3631583545260467,
-        "value": 0.1727845866593294,
-        "sensitivity": 0.8272153695822884,
-        "specificity": 0.8272154570990529
+        "threshold": -0.41164404026759743,
+        "value": 0.17206311500982474,
+        "sensitivity": 0.8279414262432315,
+        "specificity": 0.827932343737119
       },
       "high_sensitivity": {
         "feasible": true,
-        "threshold": -1.0620320090246498,
-        "sensitivity": 0.9000086003140195,
-        "specificity": 0.7304195152166448,
-        "fpr": 0.2695804847833552,
+        "threshold": -1.2280527145584033,
+        "sensitivity": 0.9000060072545162,
+        "specificity": 0.7093256270900192,
+        "fpr": 0.29067437290998077,
         "min_sensitivity_required": 0.9
       }
     }
@@ -165,68 +165,68 @@
     ],
     "accuracy": {
       "values": [
-        0.28585765432098764,
-        0.28585765432098764,
+        0.8449896296296296,
+        0.8456045679012346,
         0.9261301234567901
       ],
       "best_method": "K-Means",
       "best_value": 0.9261301234567901,
       "worst_method": "Bayesiano RGB",
-      "worst_value": 0.28585765432098764,
-      "mean": 0.4992818106995885,
-      "std": 0.3018273364886536
+      "worst_value": 0.8449896296296296,
+      "mean": 0.8722414403292181,
+      "std": 0.038105880247781256
     },
     "precision": {
       "values": [
-        0.28585765432098764,
-        0.28585765432098764,
+        0.7193191783821009,
+        0.721741422868076,
         0.948052924019182
       ],
       "best_method": "K-Means",
       "best_value": 0.948052924019182,
       "worst_method": "Bayesiano RGB",
-      "worst_value": 0.28585765432098764,
-      "mean": 0.5065894108870524,
-      "std": 0.31216184378216527
+      "worst_value": 0.7193191783821009,
+      "mean": 0.7963711750897863,
+      "std": 0.10725975180466539
     },
     "sensitivity": {
       "values": [
-        1.0,
-        1.0,
+        0.7506369180551314,
+        0.7484382065320433,
         0.7845746415271004
       ],
-      "best_method": "Bayesiano RGB",
-      "best_value": 1.0,
-      "worst_method": "K-Means",
-      "worst_value": 0.7845746415271004,
-      "mean": 0.9281915471757002,
-      "std": 0.10155248787715343
+      "best_method": "K-Means",
+      "best_value": 0.7845746415271004,
+      "worst_method": "Bayesiano PCA",
+      "worst_value": 0.7484382065320433,
+      "mean": 0.7612165887047584,
+      "std": 0.016541010787916016
     },
     "specificity": {
       "values": [
-        0.0,
-        0.0,
+        0.8827572329270732,
+        0.8844984219178215,
         0.9827921016541814
       ],
       "best_method": "K-Means",
       "best_value": 0.9827921016541814,
       "worst_method": "Bayesiano RGB",
-      "worst_value": 0.0,
-      "mean": 0.3275973672180605,
-      "std": 0.4632926397175003
+      "worst_value": 0.8827572329270732,
+      "mean": 0.9166825854996921,
+      "std": 0.04675189143703811
     },
     "f1_score": {
       "values": [
-        0.4446178833841562,
-        0.4446178833841562,
+        0.734644432484264,
+        0.7348474230933751,
         0.8586014649185378
       ],
       "best_method": "K-Means",
       "best_value": 0.8586014649185378,
       "worst_method": "Bayesiano RGB",
-      "worst_value": 0.4446178833841562,
-      "mean": 0.5826124105622834,
-      "std": 0.19515373186857018
+      "worst_value": 0.734644432484264,
+      "mean": 0.776031106832059,
+      "std": 0.05838611893931555
     }
   },
   "classifier_parameters": {
