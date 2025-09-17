@@ -1,0 +1,4 @@
+,Accuracy,Precision,Sensitivity,Specificity,F1 Score
+Bayesiano RGB,0.2859,0.2859,1.0,0.0,0.4446
+Bayesiano PCA,0.2859,0.2859,1.0,0.0,0.4446
+K-Means,0.9261,0.9481,0.7846,0.9828,0.8586
